@@ -1,0 +1,14 @@
+api_key: YOUR_REAL_API_KEY
+api_secret: YOUR_REAL_API_SECRET
+passphrase: YOUR_REAL_PASSPHRASE
+
+product_id: BTC-USD
+risk_pct: 0.01
+
+rl_model_path: /path/to/rl_model
+onchain_api: https://api.onchain.example.com
+
+prometheus_port: 8000
+
+api_base_url: https://api-public.sandbox.pro.coinbase.com
+use_sandbox: false
