@@ -12,19 +12,25 @@ from rl_agent import RLAgent
 from onchain_analyzer import OnChainAnalyzer
 from utils import fetch_product_limits, fetch_ohlcv, add_indicators, calculate_size
 
-cfg = yaml.safe_load(open('config.yaml'))
+# Load config from first YAML doc
+cfg = None
+for doc in yaml.safe_load_all(open('config.yaml')):
+    if isinstance(doc, dict):
+        cfg = doc
+        break
+
 api_url = cfg['api_base_url']
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger('short_bot')
 
 start_http_server(cfg['prometheus_port'])
-trades_executed = Counter('trades_executed_total','Total trades executed')
-trades_failed = Counter('trades_failed_total','Total trades failed')
-open_positions = Gauge('open_positions','Open positions')
+trades_executed = Counter('trades_executed_total', 'Total trades executed')
+trades_failed = Counter('trades_failed_total', 'Total trades failed')
+open_positions = Gauge('open_positions', 'Open positions')
 
 session = requests.Session()
-session.headers.update({'Authorization': f"Bearer {get_jwt()}", 'Content-Type':'application/json'})
+session.headers.update({'Authorization': f"Bearer {get_jwt()}", 'Content-Type': 'application/json'})
 
 rl_agent = RLAgent(cfg['rl_model_path'])
 onchain = OnChainAnalyzer(cfg['onchain_api'])

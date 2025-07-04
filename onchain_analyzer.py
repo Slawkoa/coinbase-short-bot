@@ -3,4 +3,4 @@ class OnChainAnalyzer:
         pass
 
     def get_metrics(self, symbol: str) -> dict:
-        return {}  # replace with actual logic
+        return {}

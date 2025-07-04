@@ -3,11 +3,11 @@ import requests
 import pandas as pd
 
 def load_config(path='config.yaml'):
-    try:
-        with open(path) as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        return {}
+    with open(path) as f:
+        for doc in yaml.safe_load_all(f):
+            if isinstance(doc, dict):
+                return doc
+    return {}
 
 cfg = load_config()
 api_url = cfg.get('api_base_url')
@@ -16,9 +16,9 @@ def fetch_product_limits(product_id: str) -> dict:
     resp = requests.get(f"{api_url}/products/{product_id}")
     prod = resp.json()
     return {
-        'min_size': float(prod['base_min_size']),
-        'max_size': float(prod['base_max_size']),
-        'increment': float(prod['base_increment']),
+        'min_size': float(prod.get('base_min_size', prod.get('min_size'))),
+        'max_size': float(prod.get('base_max_size', prod.get('max_size'))),
+        'increment': float(prod.get('base_increment', prod.get('increment'))),
     }
 
 def fetch_ohlcv(product: str, granularity: int = 900) -> pd.DataFrame:
@@ -47,8 +47,8 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 def calculate_size(balance: float, risk_pct: float, atr: float, price: float, limits: dict) -> float:
     risk_amount = balance * risk_pct
     stop_loss_dist = atr * 0.8
-    raw_size = risk_amount / stop_loss_dist
-    size = max(limits['min_size'], min(raw_size, limits['max_size']))
-    increment = limits['increment']
-    size = (size // increment) * increment
+    raw = risk_amount / stop_loss_dist
+    size = max(limits['min_size'], min(raw, limits['max_size']))
+    inc = limits['increment']
+    size = (size // inc) * inc
     return round(size, 8)

@@ -1,3 +1,4 @@
+---
 key_name: "organizations/2a983fe1-a748-4470-81d4-a2457b85f525/apiKeys/3ea39803-24f9-4f5a-b7b6-a1a2afa7d290"
 private_key: |
   -----BEGIN EC PRIVATE KEY-----
@@ -24,5 +25,5 @@ api_base_url: https://api.exchange.coinbase.com
 ...
 
 use_sandbox: false
-...
+
 
