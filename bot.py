@@ -1,39 +1,31 @@
-import yaml
-import os
-import cbpro
-import logging
-import time
+import collections
+import collections.abc
+collections.Mapping = collections.abc.Mapping
+collections.MutableMapping = collections.abc.MutableMapping
+collections.Sequence = collections.abc.Sequence
+collections.Callable = collections.abc.Callable
+
+import yaml, logging, time, requests
+from auth import get_jwt
 from prometheus_client import Counter, Gauge, start_http_server
 from rl_agent import RLAgent
 from onchain_analyzer import OnChainAnalyzer
 from utils import fetch_product_limits, fetch_ohlcv, add_indicators, calculate_size
 
-# Load config
-with open('config.yaml', 'r') as f:
-    cfg = yaml.safe_load(f)
+cfg = yaml.safe_load(open('config.yaml'))
+api_url = cfg['api_base_url']
 
-# Override with env vars
-api_key = os.getenv('CB_API_KEY', cfg['api_key'])
-api_secret = os.getenv('CB_API_SECRET', cfg['api_secret'])
-passphrase = os.getenv('CB_PASSPHRASE', cfg['passphrase'])
-use_sandbox = cfg.get('use_sandbox', False)
-base_url = cfg.get('api_base_url') if use_sandbox else 'https://api.pro.coinbase.com'
-
-# Logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    handlers=[logging.FileHandler('bot.log'), logging.StreamHandler()])
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger('short_bot')
 
-# Prometheus metrics
 start_http_server(cfg['prometheus_port'])
-trades_executed = Counter('trades_executed_total', 'Total trades executed')
-trades_failed = Counter('trades_failed_total', 'Total trades failed')
-current_pnl = Gauge('current_pnl', 'Current profit and loss')
-open_positions = Gauge('open_positions', 'Number of open positions')
+trades_executed = Counter('trades_executed_total','Total trades executed')
+trades_failed = Counter('trades_failed_total','Total trades failed')
+open_positions = Gauge('open_positions','Open positions')
 
-# Clients and modules
-client = cbpro.AuthenticatedClient(api_key, api_secret, passphrase, api_url=base_url)
+session = requests.Session()
+session.headers.update({'Authorization': f"Bearer {get_jwt()}", 'Content-Type':'application/json'})
+
 rl_agent = RLAgent(cfg['rl_model_path'])
 onchain = OnChainAnalyzer(cfg['onchain_api'])
 
@@ -43,26 +35,19 @@ def run_bot():
         try:
             df = add_indicators(fetch_ohlcv(cfg['product_id']))
             metrics = onchain.get_metrics(cfg['product_id'].split('-')[0])
-            state = rl_agent._construct_state(df, metrics)
-
-            action = rl_agent.select_action(state)
+            action = rl_agent.select_action(df, metrics)
             if action == 'short':
-                balance = float(client.get_account('USD')['available'])
+                bal = float(session.get(f"{api_url}/accounts/USD").json()['available'])
                 price = df['close'].iloc[-1]
                 atr = df['atr'].iloc[-1]
-                size = calculate_size(balance, cfg['risk_pct'], atr, price, limits)
-
-                order = client.sell(size=size, order_type='market', product_id=cfg['product_id'])
-                logger.info(f"Executed short: size={size} price={price}")
+                size = calculate_size(bal, cfg['risk_pct'], atr, price, limits)
+                order = session.post(f"{api_url}/orders", json={'size': size, 'side': 'sell', 'product_id': cfg['product_id'], 'type': 'market'}).json()
+                logger.info(f"Executed short: {order}")
                 trades_executed.inc()
                 open_positions.inc()
-            else:
-                logger.debug("No trade signal")
-
         except Exception as e:
-            logger.exception(f"Error in main loop: {e}")
+            logger.exception(f"Error: {e}")
             trades_failed.inc()
-
         time.sleep(60)
 
 if __name__ == '__main__':

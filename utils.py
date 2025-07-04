@@ -1,16 +1,30 @@
-import cbpro
+import yaml
+import requests
 import pandas as pd
+
+def load_config(path='config.yaml'):
+    try:
+        with open(path) as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        return {}
+
+cfg = load_config()
+api_url = cfg.get('api_base_url')
+
 def fetch_product_limits(product_id: str) -> dict:
-    prod = client.get_product(product_id)
+    resp = requests.get(f"{api_url}/products/{product_id}")
+    prod = resp.json()
     return {
         'min_size': float(prod['base_min_size']),
         'max_size': float(prod['base_max_size']),
         'increment': float(prod['base_increment']),
     }
 
-def fetch_ohlcv(product: str, granularity: int=900) -> pd.DataFrame:
-    df = pd.DataFrame(client.get_product_historic_rates(product, granularity=granularity),
-                      columns=['time','low','high','open','close','volume'])
+def fetch_ohlcv(product: str, granularity: int = 900) -> pd.DataFrame:
+    resp = requests.get(f"{api_url}/products/{product}/candles", params={'granularity': granularity})
+    data = resp.json()
+    df = pd.DataFrame(data, columns=['time','low','high','open','close','volume'])
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df.set_index('time', inplace=True)
     return df
@@ -21,10 +35,12 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     delta = df['close'].diff()
     gain = delta.clip(lower=0).rolling(14).mean()
     loss = -delta.clip(upper=0).rolling(14).mean()
-    df['rsi'] = 100 - 100/(1 + gain/loss)
-    tr = pd.concat([df['high']-df['low'],
-                    (df['high']-df['close'].shift()).abs(),
-                    (df['low']-df['close'].shift()).abs()], axis=1).max(axis=1)
+    df['rsi'] = 100 - 100 / (1 + gain / loss)
+    tr = pd.concat([
+        df['high'] - df['low'],
+        (df['high'] - df['close'].shift()).abs(),
+        (df['low'] - df['close'].shift()).abs()
+    ], axis=1).max(axis=1)
     df['atr'] = tr.rolling(14).mean()
     return df
 

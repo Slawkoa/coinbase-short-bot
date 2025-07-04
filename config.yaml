@@ -1,0 +1,28 @@
+key_name: "organizations/2a983fe1-a748-4470-81d4-a2457b85f525/apiKeys/3ea39803-24f9-4f5a-b7b6-a1a2afa7d290"
+private_key: |
+  -----BEGIN EC PRIVATE KEY-----
+  MHcCAQEEIIsoDlSoEPz59m4eKx5tcvdt0Q/4Cd96R1KMFG+7D97goAoGCCqGSM49
+  AwEHoUQDQgAEqQ5dNJXJD2BsEhYrDrEpUoMZQCKANdLNXdIptEa07oCorVaPpUkT
+  dJTn8sFmzRNFUegcH16S/mx0JEljNgPd8g==
+  -----END EC PRIVATE KEY-----
+product_id: BTC-USD
+...
+
+risk_pct: 0.01
+...
+
+rl_model_path: /path/to/rl_model
+...
+
+onchain_api: https://api.onchain.example.com
+...
+
+prometheus_port: 8000
+...
+
+api_base_url: https://api.exchange.coinbase.com
+...
+
+use_sandbox: false
+...
+
